@@ -9,6 +9,25 @@ interface ChatMessage {
   content: string;
 }
 
+const SUGGESTED_PROMPTS = [
+  {
+    title: "Write a to-do list for a personal project or task",
+    icon: "👤"
+  },
+  {
+    title: "Generate an email to reply to a job offer",
+    icon: "✉️"
+  },
+  {
+    title: "Summarise this article or text for me in one paragraph",
+    icon: "📄"
+  },
+  {
+    title: "How does AI work in a technical capacity",
+    icon: "🤖"
+  }
+];
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -53,6 +72,10 @@ export default function ChatInterface() {
       alert('Please select a PDF file');
       clearAttachment();
     }
+  };
+
+  const handlePromptClick = (prompt: string) => {
+    setInput(prompt);
   };
 
   const handleSendMessage = async () => {
@@ -165,30 +188,49 @@ export default function ChatInterface() {
   }, [sessionId]);
 
   return (
-    <div className="flex flex-col h-screen max-w-3xl mx-auto p-4">
-      <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={cn(
-              'p-4 rounded-lg max-w-[80%]',
-              message.role === 'user'
-                ? 'bg-blue-500 text-white ml-auto'
-                : 'bg-gray-200 text-gray-900'
-            )}
-          >
-            {message.content}
+    <div className="chat-container">
+      {messages.length === 0 ? (
+        <div className="welcome-screen">
+          <h1><span className="highlight">AI</span><span className="normal">mpathy</span></h1>
+          <h2>What would you like to know?</h2>
+          <p className="subtitle">Use one of the most common prompts below or use your own to begin</p>
+          
+          <div className="prompts-grid">
+            {SUGGESTED_PROMPTS.map((prompt, index) => (
+              <button
+                key={index}
+                className="prompt-card"
+                onClick={() => handlePromptClick(prompt.title)}
+              >
+                <span className="prompt-icon">{prompt.icon}</span>
+                <span className="prompt-text">{prompt.title}</span>
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
-
-      {showToast && (
-        <div className="fixed bottom-20 right-4 bg-green-500 text-white px-4 py-2 rounded-md">
-          PDF uploaded successfully
+          
+          <button className="refresh-button">
+            🔄 Refresh Prompts
+          </button>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={cn(
+                'p-4 rounded-lg max-w-[80%]',
+                message.role === 'user'
+                  ? 'bg-blue-500 text-white ml-auto'
+                  : 'bg-gray-200 text-gray-900'
+              )}
+            >
+              {message.content}
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="flex items-center gap-2 bg-white p-2 rounded-lg border">
+      <div className="input-form">
         <input
           type="file"
           accept=".pdf"
@@ -222,17 +264,23 @@ export default function ChatInterface() {
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
           placeholder="Type your message..."
-          className="flex-1 outline-none"
+          className="chat-input"
         />
         
         <button
           onClick={handleSendMessage}
           disabled={!input.trim()}
-          className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-50"
+          className="send-button disabled:opacity-50"
         >
           <Send className="w-5 h-5" />
         </button>
       </div>
+
+      {showToast && (
+        <div className="fixed bottom-20 right-4 bg-green-500 text-white px-4 py-2 rounded-md">
+          PDF uploaded successfully
+        </div>
+      )}
 
       {isStreaming && (
         <div className="fixed bottom-24 right-4 text-sm text-gray-500">
