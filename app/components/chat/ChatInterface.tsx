@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Paperclip, Send, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LinearProgress, Box, Typography } from '@mui/material';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -28,6 +29,17 @@ const SUGGESTED_PROMPTS = [
   }
 ];
 
+interface ProcessingStatus {
+  isProcessing: boolean;
+  progress: number;
+  currentStep: string;
+}
+
+type ProgressUpdate = {
+  progress: number;
+  step: string;
+};
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -37,6 +49,12 @@ export default function ChatInterface() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<ProcessingStatus>({
+    isProcessing: false,
+    progress: 0,
+    currentStep: ''
+  });
+  const wsRef = useRef<WebSocket | null>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -44,10 +62,55 @@ export default function ChatInterface() {
       setIsUploading(true);
       setSelectedFile(file);
       
+      // Initialize WebSocket
+      let ws: WebSocket | null = null;
+      
       try {
+        // Create new WebSocket connection
+        ws = new WebSocket('ws://localhost:8000/ws');
+        
+        // Wait for WebSocket to connect before proceeding
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('WebSocket connection timeout'));
+          }, 5000);
+
+          ws!.onopen = () => {
+            console.log('WebSocket connected, starting upload...');
+            clearTimeout(timeout);
+            resolve(true);
+          };
+
+          ws!.onerror = (error) => {
+            console.error('WebSocket connection failed:', error);
+            clearTimeout(timeout);
+            reject(error);
+          };
+        });
+
+        // Set up message handler
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          console.log('Progress update:', data);
+          setProcessingStatus(prev => ({
+            ...prev,
+            isProcessing: data.progress < 100,
+            progress: data.progress,
+            currentStep: data.step
+          }));
+        };
+
+        // Now proceed with file upload
         const formData = new FormData();
         formData.append('file', file);
-        
+        formData.append('socket_id', String(ws.url.split('/').pop()));
+
+        setProcessingStatus({
+          isProcessing: true,
+          progress: 0,
+          currentStep: 'Starting upload...'
+        });
+
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
@@ -59,14 +122,41 @@ export default function ChatInterface() {
         
         const data = await response.json();
         setSessionId(data.session_id);
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
+
+        // Wait for a moment to show completion
+        setTimeout(() => {
+          setProcessingStatus(prev => ({
+            ...prev,
+            isProcessing: false,
+            progress: 100,
+            currentStep: 'Processing complete!'
+          }));
+          setShowToast(true);
+          setTimeout(() => {
+            setShowToast(false);
+            setProcessingStatus({
+              isProcessing: false,
+              progress: 0,
+              currentStep: ''
+            });
+          }, 2000);
+        }, 500);
+
       } catch (error) {
         console.error('Error uploading file:', error);
+        setProcessingStatus({
+          isProcessing: false,
+          progress: 0,
+          currentStep: 'Upload failed'
+        });
         alert('Failed to upload and index PDF');
         clearAttachment();
       } finally {
         setIsUploading(false);
+        // Close WebSocket connection
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
       }
     } else {
       alert('Please select a PDF file');
@@ -187,8 +277,38 @@ export default function ChatInterface() {
     };
   }, [sessionId]);
 
+  const ProcessingProgressBar = () => {
+    if (!processingStatus.isProcessing && processingStatus.progress === 0) return null;
+
+    return (
+      <div className="w-full mb-4 px-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-gray-600">
+            {processingStatus.currentStep}
+          </span>
+          {processingStatus.progress === 100 && (
+            <span className="text-sm text-green-600 ml-2">
+              ✓
+            </span>
+          )}
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+          <div 
+            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-in-out"
+            style={{ 
+              width: `${processingStatus.progress}%`,
+              transition: 'width 0.3s ease-in-out'
+            }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="chat-container">
+      <ProcessingProgressBar />
+      
       {messages.length === 0 ? (
         <div className="welcome-screen">
           <h1><span className="highlight">AI</span><span className="normal">mpathy</span></h1>

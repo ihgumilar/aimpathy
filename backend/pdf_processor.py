@@ -48,59 +48,59 @@ class PDFProcessor:
             print(f"Error during initialization: {str(e)}")
             raise e
 
-    async def process_pdf(self, file_path: str) -> None:
+    async def process_pdf(self, file_path: str, send_progress) -> bool:
         """Process a PDF file and create an index."""
         try:
-            print(f"\n=== Starting PDF processing: {file_path} ===")
-            print(f"File exists: {os.path.exists(file_path)}")
-            print(f"File size: {os.path.getsize(file_path)} bytes")
+            print("Starting PDF processing...")
+            await send_progress(5, "Starting PDF processing...")
             
-            # Load the PDF
+            print("Initializing PDF reader...")
             reader = PDFReader()
-            print("Initialized PDFReader")
+            await send_progress(10, "Initializing PDF reader...")
             
             try:
+                print("Loading PDF...")
                 documents = reader.load_data(file_path)
-                print(f"PDF loaded successfully")
-                print(f"Document content sample: {str(documents[0].text[:100]) if documents else 'No content'}")
-            except Exception as e:
-                print(f"Error loading PDF: {str(e)}")
-                return False
-            
-            if not documents:
-                print("No content extracted from PDF")
-                return False
-            
-            print(f"Successfully loaded PDF with {len(documents)} pages")
-            
-            try:
-                # Create nodes from documents
-                nodes = self.node_parser.get_nodes_from_documents(documents)
-                print(f"Created {len(nodes)} nodes from the document")
+                print(f"Loaded {len(documents)} documents")
+                await send_progress(30, "PDF loaded successfully")
                 
-                # Add metadata to nodes
+                if not documents:
+                    print("No content extracted from PDF")
+                    await send_progress(0, "Error: No content extracted from PDF")
+                    return False
+                    
+                print("Processing PDF content...")
+                await send_progress(50, "Processing PDF content...")
+                
+                print("Creating document nodes...")
+                nodes = self.node_parser.get_nodes_from_documents(documents)
+                print(f"Created {len(nodes)} nodes")
+                await send_progress(70, "Creating document nodes...")
+                
                 for node in nodes:
                     node.metadata.update({
                         "file_name": os.path.basename(file_path),
                         "doc_id": str(documents[0].doc_id)
                     })
                 
-                # Create index directly
-                print("Starting vector index creation...")
-                self.index = VectorStoreIndex(
-                    nodes,
-                    show_progress=True
-                )
-                print("Successfully created vector index")
-                print(f"Index contains {len(self.index.docstore.docs)} nodes")
+                print("Creating vector index...")
+                await send_progress(80, "Creating vector index...")
+                self.index = VectorStoreIndex(nodes, show_progress=True)
+                
+                print("Processing complete!")
+                await send_progress(100, "Processing complete!")
                 return True
+                
             except Exception as e:
-                print(f"Error during indexing: {str(e)}")
+                print(f"Error during processing: {str(e)}")
+                await send_progress(0, f"Error: {str(e)}")
                 return False
+                
         except Exception as e:
             print(f"Error processing PDF: {str(e)}")
+            await send_progress(0, f"Error: {str(e)}")
             return False
-        
+
     async def query_pdf(self, query_text: str) -> str:
         """Query the indexed PDF content."""
         if not self.index:

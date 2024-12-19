@@ -1,14 +1,15 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pdf_processor import PDFProcessor
 import os
 import shutil
-from typing import Optional, AsyncGenerator
+from typing import Optional, AsyncGenerator, Dict
 import uuid
 import json
 
 app = FastAPI()
+active_connections: Dict[str, WebSocket] = {}
 
 # Configure CORS
 app.add_middleware(
@@ -27,10 +28,40 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.post("/api/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_pdf(
+    file: UploadFile = File(...),
+    socket_id: str = Form(None)
+):
     """Handle PDF file upload and indexing."""
     if not file:
         raise HTTPException(status_code=400, detail="No file provided")
+    
+    print(f"Received upload request with socket_id: {socket_id}")
+    websocket = None
+    
+    # Find the WebSocket connection
+    if socket_id:
+        for ws_id, ws in active_connections.items():
+            if str(ws_id) == socket_id:
+                websocket = ws
+                print(f"Found matching WebSocket connection: {ws_id}")
+                break
+    
+    if not websocket:
+        print("No matching WebSocket connection found")
+    
+    async def send_progress(progress: int, step: str):
+        if websocket and websocket.client_state.CONNECTED:
+            try:
+                await websocket.send_json({
+                    "progress": progress,
+                    "step": step
+                })
+                print(f"Sent progress update: {progress}% - {step}")
+            except Exception as e:
+                print(f"Error sending progress update: {str(e)}")
+        else:
+            print("WebSocket not available for progress update")
     
     print(f"\n=== Starting upload process for file: {file.filename} ===")
     print(f"File content type: {file.content_type}")
@@ -67,14 +98,13 @@ async def upload_pdf(file: UploadFile = File(...)):
                 detail=f"Failed to save file: {str(e)}"
             )
         
-        # Process the PDF
-        print("Initializing PDFProcessor...")
+        # Process the PDF with progress updates
         processor = PDFProcessor()
-        print(f"Processing PDF: {file.filename}")
-        success = await processor.process_pdf(file_path)
+        success = await processor.process_pdf(file_path, send_progress)
         
         if success:
             pdf_processors[session_id] = processor
+            await send_progress(100, "Processing complete!")
             print(f"Successfully indexed PDF: {file.filename}")
             print(f"Total active sessions: {len(pdf_processors)}")
             return {"session_id": session_id, "message": "PDF processed successfully"}
@@ -144,6 +174,22 @@ async def clear_session(session_id: str):
             
         return {"message": "Session cleared successfully"}
     raise HTTPException(status_code=404, detail="Session not found")
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    socket_id = str(id(websocket))
+    active_connections[socket_id] = websocket
+    print(f"New WebSocket connection established: {socket_id}")
+    
+    try:
+        while True:
+            data = await websocket.receive_text()
+            print(f"Received WebSocket message: {data}")
+    except WebSocketDisconnect:
+        if socket_id in active_connections:
+            del active_connections[socket_id]
+            print(f"WebSocket connection closed: {socket_id}")
 
 if __name__ == "__main__":
     import uvicorn
