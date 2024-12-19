@@ -88,13 +88,20 @@ export default function ChatInterface() {
           };
         });
 
+        // Set initial progress
+        setProcessingStatus({
+          isProcessing: true,
+          progress: 0,
+          currentStep: 'Starting upload...'
+        });
+
         // Set up message handler
         ws.onmessage = (event) => {
           const data = JSON.parse(event.data);
           console.log('Progress update:', data);
           setProcessingStatus(prev => ({
             ...prev,
-            isProcessing: data.progress < 100,
+            isProcessing: true,
             progress: data.progress,
             currentStep: data.step
           }));
@@ -104,12 +111,6 @@ export default function ChatInterface() {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('socket_id', String(ws.url.split('/').pop()));
-
-        setProcessingStatus({
-          isProcessing: true,
-          progress: 0,
-          currentStep: 'Starting upload...'
-        });
 
         const response = await fetch('/api/upload', {
           method: 'POST',
@@ -123,24 +124,23 @@ export default function ChatInterface() {
         const data = await response.json();
         setSessionId(data.session_id);
 
-        // Wait for a moment to show completion
+        // Show completion
+        setProcessingStatus(prev => ({
+          ...prev,
+          isProcessing: false,
+          progress: 100,
+          currentStep: 'Processing complete!'
+        }));
+
+        setShowToast(true);
         setTimeout(() => {
-          setProcessingStatus(prev => ({
-            ...prev,
+          setShowToast(false);
+          setProcessingStatus({
             isProcessing: false,
-            progress: 100,
-            currentStep: 'Processing complete!'
-          }));
-          setShowToast(true);
-          setTimeout(() => {
-            setShowToast(false);
-            setProcessingStatus({
-              isProcessing: false,
-              progress: 0,
-              currentStep: ''
-            });
-          }, 2000);
-        }, 500);
+            progress: 0,
+            currentStep: ''
+          });
+        }, 2000);
 
       } catch (error) {
         console.error('Error uploading file:', error);
@@ -153,7 +153,6 @@ export default function ChatInterface() {
         clearAttachment();
       } finally {
         setIsUploading(false);
-        // Close WebSocket connection
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.close();
         }
@@ -280,11 +279,18 @@ export default function ChatInterface() {
   const ProcessingProgressBar = () => {
     if (!processingStatus.isProcessing && processingStatus.progress === 0) return null;
 
+    // Function to determine text color based on status
+    const getStatusColor = () => {
+      if (processingStatus.progress === 100) return "text-green-600";
+      if (processingStatus.currentStep.includes("failed")) return "text-red-600";
+      return "text-blue-600"; // Default color for in-progress
+    };
+
     return (
       <div className="w-full mb-4 px-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-gray-600">
-            {processingStatus.currentStep}
+          <span className={`text-sm font-medium ${getStatusColor()}`}>
+            {processingStatus.currentStep} ({processingStatus.progress}%)
           </span>
           {processingStatus.progress === 100 && (
             <span className="text-sm text-green-600 ml-2">
@@ -294,10 +300,15 @@ export default function ChatInterface() {
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
           <div 
-            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-in-out"
+            className={`h-2.5 progress-bar-striped ${
+              processingStatus.progress === 100 
+                ? 'bg-green-600' 
+                : processingStatus.currentStep.includes("failed")
+                  ? 'bg-red-600'
+                  : 'bg-blue-600'
+            }`}
             style={{ 
               width: `${processingStatus.progress}%`,
-              transition: 'width 0.3s ease-in-out'
             }}
           />
         </div>
