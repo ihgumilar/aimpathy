@@ -3,11 +3,42 @@
 import { useState, useRef, useEffect } from 'react';
 import { Paperclip, Send, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LinearProgress, Box, Typography } from '@mui/material';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
+
+const SUGGESTED_PROMPTS = [
+  {
+    title: "Write a to-do list for a personal project or task",
+    icon: "👤"
+  },
+  {
+    title: "Generate an email to reply to a job offer",
+    icon: "✉️"
+  },
+  {
+    title: "Summarise this article or text for me in one paragraph",
+    icon: "📄"
+  },
+  {
+    title: "How does AI work in a technical capacity",
+    icon: "🤖"
+  }
+];
+
+interface ProcessingStatus {
+  isProcessing: boolean;
+  progress: number;
+  currentStep: string;
+}
+
+type ProgressUpdate = {
+  progress: number;
+  step: string;
+};
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -18,6 +49,12 @@ export default function ChatInterface() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<ProcessingStatus>({
+    isProcessing: false,
+    progress: 0,
+    currentStep: ''
+  });
+  const wsRef = useRef<WebSocket | null>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -25,10 +62,56 @@ export default function ChatInterface() {
       setIsUploading(true);
       setSelectedFile(file);
       
+      // Initialize WebSocket
+      let ws: WebSocket | null = null;
+      
       try {
+        // Create new WebSocket connection
+        ws = new WebSocket('ws://localhost:8000/ws');
+        
+        // Wait for WebSocket to connect before proceeding
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('WebSocket connection timeout'));
+          }, 5000);
+
+          ws!.onopen = () => {
+            console.log('WebSocket connected, starting upload...');
+            clearTimeout(timeout);
+            resolve(true);
+          };
+
+          ws!.onerror = (error) => {
+            console.error('WebSocket connection failed:', error);
+            clearTimeout(timeout);
+            reject(error);
+          };
+        });
+
+        // Set initial progress
+        setProcessingStatus({
+          isProcessing: true,
+          progress: 0,
+          currentStep: 'Starting upload...'
+        });
+
+        // Set up message handler
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          console.log('Progress update:', data);
+          setProcessingStatus(prev => ({
+            ...prev,
+            isProcessing: true,
+            progress: data.progress,
+            currentStep: data.step
+          }));
+        };
+
+        // Now proceed with file upload
         const formData = new FormData();
         formData.append('file', file);
-        
+        formData.append('socket_id', String(ws.url.split('/').pop()));
+
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
@@ -40,19 +123,48 @@ export default function ChatInterface() {
         
         const data = await response.json();
         setSessionId(data.session_id);
+
+        // Show completion
+        setProcessingStatus(prev => ({
+          ...prev,
+          isProcessing: false,
+          progress: 100,
+          currentStep: 'Processing complete!'
+        }));
+
         setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
+        setTimeout(() => {
+          setShowToast(false);
+          setProcessingStatus({
+            isProcessing: false,
+            progress: 0,
+            currentStep: ''
+          });
+        }, 2000);
+
       } catch (error) {
         console.error('Error uploading file:', error);
+        setProcessingStatus({
+          isProcessing: false,
+          progress: 0,
+          currentStep: 'Upload failed'
+        });
         alert('Failed to upload and index PDF');
         clearAttachment();
       } finally {
         setIsUploading(false);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
       }
     } else {
       alert('Please select a PDF file');
       clearAttachment();
     }
+  };
+
+  const handlePromptClick = (prompt: string) => {
+    setInput(prompt);
   };
 
   const handleSendMessage = async () => {
@@ -164,31 +276,92 @@ export default function ChatInterface() {
     };
   }, [sessionId]);
 
-  return (
-    <div className="flex flex-col h-screen max-w-3xl mx-auto p-4">
-      <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={cn(
-              'p-4 rounded-lg max-w-[80%]',
-              message.role === 'user'
-                ? 'bg-blue-500 text-white ml-auto'
-                : 'bg-gray-200 text-gray-900'
-            )}
-          >
-            {message.content}
-          </div>
-        ))}
-      </div>
+  const ProcessingProgressBar = () => {
+    if (!processingStatus.isProcessing && processingStatus.progress === 0) return null;
 
-      {showToast && (
-        <div className="fixed bottom-20 right-4 bg-green-500 text-white px-4 py-2 rounded-md">
-          PDF uploaded successfully
+    // Function to determine text color based on status
+    const getStatusColor = () => {
+      if (processingStatus.progress === 100) return "text-green-600";
+      if (processingStatus.currentStep.includes("failed")) return "text-red-600";
+      return "text-blue-600"; // Default color for in-progress
+    };
+
+    return (
+      <div className="w-full mb-4 px-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className={`text-sm font-medium ${getStatusColor()}`}>
+            {processingStatus.currentStep} ({processingStatus.progress}%)
+          </span>
+          {processingStatus.progress === 100 && (
+            <span className="text-sm text-green-600 ml-2">
+              ✓
+            </span>
+          )}
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+          <div 
+            className={`h-2.5 progress-bar-striped ${
+              processingStatus.progress === 100 
+                ? 'bg-green-600' 
+                : processingStatus.currentStep.includes("failed")
+                  ? 'bg-red-600'
+                  : 'bg-blue-600'
+            }`}
+            style={{ 
+              width: `${processingStatus.progress}%`,
+            }}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="chat-container">
+      <ProcessingProgressBar />
+      
+      {messages.length === 0 ? (
+        <div className="welcome-screen">
+          <h1><span className="highlight">AI</span><span className="normal">mpathy</span></h1>
+          <h2>What would you like to know?</h2>
+          <p className="subtitle">Use one of the most common prompts below or use your own to begin</p>
+          
+          <div className="prompts-grid">
+            {SUGGESTED_PROMPTS.map((prompt, index) => (
+              <button
+                key={index}
+                className="prompt-card"
+                onClick={() => handlePromptClick(prompt.title)}
+              >
+                <span className="prompt-icon">{prompt.icon}</span>
+                <span className="prompt-text">{prompt.title}</span>
+              </button>
+            ))}
+          </div>
+          
+          <button className="refresh-button">
+            🔄 Refresh Prompts
+          </button>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={cn(
+                'p-4 rounded-lg max-w-[80%]',
+                message.role === 'user'
+                  ? 'bg-blue-500 text-white ml-auto'
+                  : 'bg-gray-200 text-gray-900'
+              )}
+            >
+              {message.content}
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="flex items-center gap-2 bg-white p-2 rounded-lg border">
+      <div className="input-form">
         <input
           type="file"
           accept=".pdf"
@@ -222,17 +395,23 @@ export default function ChatInterface() {
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
           placeholder="Type your message..."
-          className="flex-1 outline-none"
+          className="chat-input"
         />
         
         <button
           onClick={handleSendMessage}
           disabled={!input.trim()}
-          className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-50"
+          className="send-button disabled:opacity-50"
         >
           <Send className="w-5 h-5" />
         </button>
       </div>
+
+      {showToast && (
+        <div className="fixed bottom-20 right-4 bg-green-500 text-white px-4 py-2 rounded-md">
+          PDF uploaded successfully
+        </div>
+      )}
 
       {isStreaming && (
         <div className="fixed bottom-24 right-4 text-sm text-gray-500">
