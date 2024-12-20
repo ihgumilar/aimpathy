@@ -132,8 +132,11 @@ async def query_pdf(
 ):
     """Query the processed PDF content with streaming response."""
     processor = pdf_processors.get(session_id)
-    if not processor:
-        raise HTTPException(status_code=404, detail="Session not found")
+    if not processor or not processor.index:
+        raise HTTPException(
+            status_code=404, 
+            detail="No file has been uploaded. Please upload a file first."
+        )
     
     async def generate_response() -> AsyncGenerator[str, None]:
         try:

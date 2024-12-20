@@ -180,6 +180,19 @@ export default function ChatInterface() {
     setIsStreaming(true);
 
     try {
+      // Check if there's no file uploaded and no active session
+      if (!selectedFile && !sessionId) {
+        setMessages((prev) => [
+          ...prev,
+          { 
+            role: 'assistant', 
+            content: 'No file uploaded ! Please upload one and try again :)' 
+          },
+        ]);
+        setIsStreaming(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.append('message', input);
       if (selectedFile) {
