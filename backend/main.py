@@ -191,6 +191,25 @@ async def websocket_endpoint(websocket: WebSocket):
             del active_connections[socket_id]
             print(f"WebSocket connection closed: {socket_id}")
 
+@app.post("/api/reset-index")
+async def reset_index():
+    try:
+        # Clear the vector store index
+        if os.path.exists("index"):
+            shutil.rmtree("index")
+        
+        # Initialize a new empty index
+        initialize_index()
+        
+        return {"message": "Index reset successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def initialize_index():
+    # Create empty index directory if it doesn't exist
+    if not os.path.exists("index"):
+        os.makedirs("index")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000) 

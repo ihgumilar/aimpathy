@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Paperclip, Send, X } from 'lucide-react';
+import { Paperclip, Send, X, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LinearProgress, Box, Typography } from '@mui/material';
 
@@ -316,6 +316,15 @@ export default function ChatInterface() {
     );
   };
 
+  const handleClearChat = () => {
+    setMessages([]);
+    setInput('');
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="chat-container">
       <ProcessingProgressBar />
@@ -344,21 +353,33 @@ export default function ChatInterface() {
           </button>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={cn(
-                'p-4 rounded-lg max-w-[80%]',
-                message.role === 'user'
-                  ? 'bg-blue-500 text-white ml-auto'
-                  : 'bg-gray-200 text-gray-900'
-              )}
+        <>
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={handleClearChat}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             >
-              {message.content}
-            </div>
-          ))}
-        </div>
+              <Trash2 className="w-4 h-4" />
+              Clear Chat
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={cn(
+                  'p-4 rounded-lg max-w-[80%]',
+                  message.role === 'user'
+                    ? 'bg-blue-500 text-white ml-auto'
+                    : 'bg-gray-200 text-gray-900'
+                )}
+              >
+                {message.content}
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <div className="input-form">

@@ -4,6 +4,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import TopBar from '@/components/layout/TopBar'
 import { Menu } from 'lucide-react'
 import { useState } from 'react'
+import Link from 'next/link'
 
 export default function MainLayout({
   children,

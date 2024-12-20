@@ -1,26 +1,66 @@
 'use client'
 
-import { Search, Plus } from 'lucide-react'
+import { MessageSquare, FolderOpen, Search, Settings, LogOut } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 export default function Sidebar() {
+  const pathname = usePathname()
+
+  const navigation = [
+    {
+      name: 'Chat',
+      href: '/chat',
+      icon: MessageSquare,
+    },
+    {
+      name: 'Folders',
+      href: '/folders-section',
+      icon: FolderOpen,
+    },
+    {
+      name: 'Search',
+      href: '/search',
+      icon: Search,
+    },
+  ]
+
   return (
-    <div className="w-[280px] h-screen bg-[#2D2D2D] p-4 flex flex-col">
-      <button className="w-full bg-[#2ECC71] text-white rounded-lg p-2 mb-4 flex items-center justify-center gap-2">
-        <Plus size={20} />
-        New Chat
-      </button>
-      
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
-        <input
-          type="text"
-          placeholder="Search chats..."
-          className="w-full bg-[#1E1E1E] rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400"
-        />
+    <div className="w-64 h-full bg-[#1E1E1E] text-white p-4">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold">AI Chat</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {/* Chat list will be populated here */}
+      <nav className="space-y-2">
+        {navigation.map((item) => {
+          const Icon = item.icon
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={`flex items-center gap-3 p-3 rounded-lg hover:bg-[#2D2D2D] transition-colors ${
+                pathname === item.href ? 'bg-[#2D2D2D]' : ''
+              }`}
+            >
+              <Icon size={20} />
+              <span>{item.name}</span>
+            </Link>
+          )
+        })}
+      </nav>
+
+      <div className="absolute bottom-4 space-y-2 w-52">
+        <Link
+          href="/settings"
+          className="flex items-center gap-3 p-3 rounded-lg hover:bg-[#2D2D2D] transition-colors"
+        >
+          <Settings size={20} />
+          <span>Settings</span>
+        </Link>
+        <button className="flex items-center gap-3 p-3 rounded-lg hover:bg-[#2D2D2D] transition-colors w-full">
+          <LogOut size={20} />
+          <span>Logout</span>
+        </button>
       </div>
     </div>
   )
