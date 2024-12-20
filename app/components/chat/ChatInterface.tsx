@@ -12,20 +12,20 @@ interface ChatMessage {
 
 const SUGGESTED_PROMPTS = [
   {
-    title: "Write a to-do list for a personal project or task",
-    icon: "👤"
+    title: "dentify the key takeaways from this document",
+    icon: "🗝️"
   },
   {
-    title: "Generate an email to reply to a job offer",
-    icon: "✉️"
+    title: "List the main arguments or points discussed in this file",
+    icon: "✅"
   },
   {
     title: "Summarise this article or text for me in one paragraph",
-    icon: "📄"
+    icon: "📝"
   },
   {
-    title: "How does AI work in a technical capacity",
-    icon: "🤖"
+    title: "Outline the key ideas from this file",
+    icon: "🧩"
   }
 ];
 
@@ -366,7 +366,7 @@ export default function ChatInterface() {
         <div className="welcome-screen">
           <h1><span className="highlight">AI</span><span className="normal">mpathy</span></h1>
           <h2>What would you like to know?</h2>
-          <p className="subtitle">Use one of the most common prompts below or use your own to begin</p>
+          <p className="subtitle">Use one of these prompts below to begin</p>
           
           <div className="prompts-grid">
             {SUGGESTED_PROMPTS.map((prompt, index) => (
@@ -380,10 +380,6 @@ export default function ChatInterface() {
               </button>
             ))}
           </div>
-          
-          <button className="refresh-button">
-            🔄 Refresh Prompts
-          </button>
         </div>
       ) : (
         <>
