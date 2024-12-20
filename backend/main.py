@@ -161,18 +161,34 @@ async def query_pdf(
         }
     )
 
-@app.delete("/api/session/{session_id}")
+@app.delete("/api/chat/session/{session_id}")
 async def clear_session(session_id: str):
     """Clear the session and remove the PDF file."""
-    if session_id in pdf_processors:
-        del pdf_processors[session_id]
-        
-        # Remove the PDF file
-        file_path = os.path.join(UPLOAD_DIR, f"{session_id}.pdf")
-        if os.path.exists(file_path):
-            os.remove(file_path)
+    try:
+        if session_id in pdf_processors:
+            # Get the processor before deleting
+            processor = pdf_processors[session_id]
             
-        return {"message": "Session cleared successfully"}
+            # Clear the processor's index
+            if processor and processor.index:
+                processor.index = None
+            
+            # Remove from active processors
+            del pdf_processors[session_id]
+            
+            # Remove the PDF file
+            file_path = os.path.join(UPLOAD_DIR, f"{session_id}.pdf")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                
+            return {"message": "Session cleared successfully"}
+    except Exception as e:
+        print(f"Error clearing session: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to clear session: {str(e)}"
+        )
+    
     raise HTTPException(status_code=404, detail="Session not found")
 
 @app.websocket("/ws")
@@ -193,17 +209,27 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.post("/api/reset-index")
 async def reset_index():
+    """Reset the vector store index."""
     try:
-        # Clear the vector store index
-        if os.path.exists("index"):
-            shutil.rmtree("index")
+        # Clear all active sessions
+        pdf_processors.clear()
         
-        # Initialize a new empty index
-        initialize_index()
+        # Clear uploads directory
+        if os.path.exists(UPLOAD_DIR):
+            for file in os.listdir(UPLOAD_DIR):
+                file_path = os.path.join(UPLOAD_DIR, file)
+                try:
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                except Exception as e:
+                    print(f"Error removing file {file_path}: {str(e)}")
         
         return {"message": "Index reset successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to reset index: {str(e)}"
+        )
 
 def initialize_index():
     # Create empty index directory if it doesn't exist

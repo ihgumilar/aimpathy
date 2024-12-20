@@ -316,12 +316,32 @@ export default function ChatInterface() {
     );
   };
 
-  const handleClearChat = () => {
-    setMessages([]);
-    setInput('');
-    setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const handleClearChat = async () => {
+    try {
+      // Clear frontend state
+      setMessages([]);
+      setInput('');
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      // Clear backend session if exists
+      if (sessionId) {
+        await fetch(`/api/chat/session/${sessionId}`, {
+          method: 'DELETE',
+        });
+        setSessionId(null);
+      }
+
+      // Reset the index
+      await fetch('/api/reset-index', {
+        method: 'POST',
+      });
+
+      console.log('Chat and session cleared successfully');
+    } catch (error) {
+      console.error('Error clearing chat:', error);
     }
   };
 
