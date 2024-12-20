@@ -364,7 +364,11 @@ export default function ChatInterface() {
       
       {messages.length === 0 ? (
         <div className="welcome-screen">
-          <h1><span className="highlight">AI</span><span className="normal">mpathy</span></h1>
+          <h1>
+            <a href="https://www.aimpathy.co.nz" target="_blank" rel="noopener noreferrer" className="hover:opacity-80">
+              <span className="highlight">AI</span><span className="normal">mpathy</span>
+            </a>
+          </h1>
           <h2>What would you like to know?</h2>
           <p className="subtitle">Use one of these prompts below to begin</p>
           
