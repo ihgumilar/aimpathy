@@ -7,6 +7,7 @@ import shutil
 from typing import Optional, AsyncGenerator, Dict
 import uuid
 import json
+import subprocess
 
 app = FastAPI()
 active_connections: Dict[str, WebSocket] = {}
@@ -24,7 +25,7 @@ app.add_middleware(
 pdf_processors = {}
 
 # Create uploads directory if it doesn't exist
-UPLOAD_DIR = "uploads"
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.post("/api/upload")
@@ -132,8 +133,11 @@ async def query_pdf(
 ):
     """Query the processed PDF content with streaming response."""
     processor = pdf_processors.get(session_id)
-    if not processor:
-        raise HTTPException(status_code=404, detail="Session not found")
+    if not processor or not processor.index:
+        raise HTTPException(
+            status_code=404, 
+            detail="No file has been uploaded. Please upload a file first."
+        )
     
     async def generate_response() -> AsyncGenerator[str, None]:
         try:
@@ -161,18 +165,34 @@ async def query_pdf(
         }
     )
 
-@app.delete("/api/session/{session_id}")
+@app.delete("/api/chat/session/{session_id}")
 async def clear_session(session_id: str):
     """Clear the session and remove the PDF file."""
-    if session_id in pdf_processors:
-        del pdf_processors[session_id]
-        
-        # Remove the PDF file
-        file_path = os.path.join(UPLOAD_DIR, f"{session_id}.pdf")
-        if os.path.exists(file_path):
-            os.remove(file_path)
+    try:
+        if session_id in pdf_processors:
+            # Get the processor before deleting
+            processor = pdf_processors[session_id]
             
-        return {"message": "Session cleared successfully"}
+            # Clear the processor's index
+            if processor and processor.index:
+                processor.index = None
+            
+            # Remove from active processors
+            del pdf_processors[session_id]
+            
+            # Remove the PDF file
+            file_path = os.path.join(UPLOAD_DIR, f"{session_id}.pdf")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                
+            return {"message": "Session cleared successfully"}
+    except Exception as e:
+        print(f"Error clearing session: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to clear session: {str(e)}"
+        )
+    
     raise HTTPException(status_code=404, detail="Session not found")
 
 @app.websocket("/ws")
@@ -190,6 +210,68 @@ async def websocket_endpoint(websocket: WebSocket):
         if socket_id in active_connections:
             del active_connections[socket_id]
             print(f"WebSocket connection closed: {socket_id}")
+
+@app.post("/api/reset-index")
+async def reset_index():
+    """Reset the vector store index and clean up all uploaded files."""
+    try:
+        print("\n=== Starting index reset and file cleanup ===")
+        # Clear all active sessions
+        pdf_processors.clear()
+        print("Cleared all active PDF processors")
+        
+        print(f"Cleaning directory: {UPLOAD_DIR}")
+        
+        if os.path.exists(UPLOAD_DIR):
+            try:
+                # List all files before deletion
+                files = os.listdir(UPLOAD_DIR)
+                print(f"Found {len(files)} files to delete: {files}")
+                
+                # Delete each file
+                for filename in files:
+                    file_path = os.path.join(UPLOAD_DIR, filename)
+                    if os.path.isfile(file_path):
+                        try:
+                            print(f"Attempting to delete: {file_path}")
+                            os.remove(file_path)
+                            print(f"Successfully deleted: {file_path}")
+                        except PermissionError:
+                            print(f"Permission error, trying with chmod: {file_path}")
+                            os.chmod(file_path, 0o777)
+                            os.remove(file_path)
+                            print(f"Deleted after chmod: {file_path}")
+                        except Exception as e:
+                            print(f"Failed to delete {file_path}: {e}")
+                            # Try system command as last resort
+                            os.system(f"rm -f '{file_path}'")
+                
+                # Verify deletion
+                remaining = os.listdir(UPLOAD_DIR)
+                if remaining:
+                    print(f"Warning: {len(remaining)} files still remaining: {remaining}")
+                else:
+                    print("All files successfully deleted")
+                    
+            except Exception as e:
+                print(f"Error during cleanup: {e}")
+                raise e
+        else:
+            print(f"Upload directory does not exist: {UPLOAD_DIR}")
+        
+        print("=== Reset complete ===")
+        return {"status": "success", "message": "Index and uploads cleared successfully"}
+    except Exception as e:
+        print(f"Error in reset_index: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"status": "error", "message": str(e)}
+        )
+
+def initialize_index():
+    # Create empty index directory if it doesn't exist
+    if not os.path.exists("index"):
+        os.makedirs("index")
 
 if __name__ == "__main__":
     import uvicorn

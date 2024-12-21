@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Paperclip, Send, X } from 'lucide-react';
+import { Paperclip, Send, X, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LinearProgress, Box, Typography } from '@mui/material';
 
@@ -12,20 +12,20 @@ interface ChatMessage {
 
 const SUGGESTED_PROMPTS = [
   {
-    title: "Write a to-do list for a personal project or task",
-    icon: "👤"
+    title: "dentify the key takeaways from this document",
+    icon: "🗝️"
   },
   {
-    title: "Generate an email to reply to a job offer",
-    icon: "✉️"
+    title: "List the main arguments or points discussed in this file",
+    icon: "✅"
   },
   {
     title: "Summarise this article or text for me in one paragraph",
-    icon: "📄"
+    icon: "📝"
   },
   {
-    title: "How does AI work in a technical capacity",
-    icon: "🤖"
+    title: "Outline the key ideas from this file",
+    icon: "🧩"
   }
 ];
 
@@ -180,6 +180,19 @@ export default function ChatInterface() {
     setIsStreaming(true);
 
     try {
+      // Check if there's no file uploaded and no active session
+      if (!selectedFile && !sessionId) {
+        setMessages((prev) => [
+          ...prev,
+          { 
+            role: 'assistant', 
+            content: 'No file uploaded ! Please upload one and try again :)' 
+          },
+        ]);
+        setIsStreaming(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.append('message', input);
       if (selectedFile) {
@@ -316,15 +329,52 @@ export default function ChatInterface() {
     );
   };
 
+  const handleClearChat = async () => {
+    try {
+      console.log('Starting chat cleanup...');
+      
+      // First call reset-index to clean up all files
+      const resetResponse = await fetch('/api/reset-index', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      // Clear frontend state regardless of response
+      setMessages([]);
+      setInput('');
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      // Clear session if exists
+      if (sessionId) {
+        await fetch(`/api/chat/session/${sessionId}`, {
+          method: 'DELETE',
+        });
+        setSessionId(null);
+      }
+
+    } catch (error) {
+      console.error('Error clearing chat:', error);
+    }
+  };
+
   return (
     <div className="chat-container">
       <ProcessingProgressBar />
       
       {messages.length === 0 ? (
         <div className="welcome-screen">
-          <h1><span className="highlight">AI</span><span className="normal">mpathy</span></h1>
+          <h1>
+            <a href="https://www.aimpathy.co.nz" target="_blank" rel="noopener noreferrer" className="hover:opacity-80">
+              <span className="highlight">AI</span><span className="normal">mpathy</span>
+            </a>
+          </h1>
           <h2>What would you like to know?</h2>
-          <p className="subtitle">Use one of the most common prompts below or use your own to begin</p>
+          <p className="subtitle">Use one of these prompts below to begin</p>
           
           <div className="prompts-grid">
             {SUGGESTED_PROMPTS.map((prompt, index) => (
@@ -338,27 +388,35 @@ export default function ChatInterface() {
               </button>
             ))}
           </div>
-          
-          <button className="refresh-button">
-            🔄 Refresh Prompts
-          </button>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={cn(
-                'p-4 rounded-lg max-w-[80%]',
-                message.role === 'user'
-                  ? 'bg-blue-500 text-white ml-auto'
-                  : 'bg-gray-200 text-gray-900'
-              )}
+        <>
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={handleClearChat}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             >
-              {message.content}
-            </div>
-          ))}
-        </div>
+              <Trash2 className="w-4 h-4" />
+              Clear Chat
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={cn(
+                  'p-4 rounded-lg max-w-[80%]',
+                  message.role === 'user'
+                    ? 'bg-blue-500 text-white ml-auto'
+                    : 'bg-gray-200 text-gray-900'
+                )}
+              >
+                {message.content}
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <div className="input-form">
