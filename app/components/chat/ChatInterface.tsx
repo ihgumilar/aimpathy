@@ -331,7 +331,17 @@ export default function ChatInterface() {
 
   const handleClearChat = async () => {
     try {
-      // Clear frontend state
+      console.log('Starting chat cleanup...');
+      
+      // First call reset-index to clean up all files
+      const resetResponse = await fetch('/api/reset-index', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      // Clear frontend state regardless of response
       setMessages([]);
       setInput('');
       setSelectedFile(null);
@@ -339,7 +349,7 @@ export default function ChatInterface() {
         fileInputRef.current.value = '';
       }
 
-      // Clear backend session if exists
+      // Clear session if exists
       if (sessionId) {
         await fetch(`/api/chat/session/${sessionId}`, {
           method: 'DELETE',
@@ -347,12 +357,6 @@ export default function ChatInterface() {
         setSessionId(null);
       }
 
-      // Reset the index
-      await fetch('/api/reset-index', {
-        method: 'POST',
-      });
-
-      console.log('Chat and session cleared successfully');
     } catch (error) {
       console.error('Error clearing chat:', error);
     }

@@ -25,7 +25,7 @@ app.add_middleware(
 pdf_processors = {}
 
 # Create uploads directory if it doesn't exist
-UPLOAD_DIR = "uploads"  # This will be relative to where the script is run
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.post("/api/upload")
@@ -215,50 +215,57 @@ async def websocket_endpoint(websocket: WebSocket):
 async def reset_index():
     """Reset the vector store index and clean up all uploaded files."""
     try:
+        print("\n=== Starting index reset and file cleanup ===")
         # Clear all active sessions
         pdf_processors.clear()
+        print("Cleared all active PDF processors")
         
-        # Get the absolute path of the uploads directory
-        uploads_path = os.path.abspath("uploads")
-        print(f"Cleaning directory: {uploads_path}")
+        print(f"Cleaning directory: {UPLOAD_DIR}")
         
-        try:
-            # Delete all files in uploads directory
-            for filename in os.listdir(uploads_path):
-                file_path = os.path.join(uploads_path, filename)
-                try:
-                    if os.path.isfile(file_path):
-                        # Force delete with error handling
-                        try:
-                            os.chmod(file_path, 0o777)  # Give full permissions
-                        except:
-                            pass
-                        os.unlink(file_path)
-                        print(f"Deleted file: {file_path}")
-                except Exception as e:
-                    print(f"Failed to delete {file_path}: {e}")
-            
-            # Verify cleanup
-            remaining = os.listdir(uploads_path)
-            if remaining:
-                print(f"Warning: Files remaining: {remaining}")
-                # Last resort - use system command
-                os.system(f"rm -f {uploads_path}/*")
-            else:
-                print("All files successfully deleted")
+        if os.path.exists(UPLOAD_DIR):
+            try:
+                # List all files before deletion
+                files = os.listdir(UPLOAD_DIR)
+                print(f"Found {len(files)} files to delete: {files}")
                 
-        except Exception as e:
-            print(f"Error during cleanup: {e}")
-            
-        # Ensure uploads directory exists
-        os.makedirs(uploads_path, exist_ok=True)
+                # Delete each file
+                for filename in files:
+                    file_path = os.path.join(UPLOAD_DIR, filename)
+                    if os.path.isfile(file_path):
+                        try:
+                            print(f"Attempting to delete: {file_path}")
+                            os.remove(file_path)
+                            print(f"Successfully deleted: {file_path}")
+                        except PermissionError:
+                            print(f"Permission error, trying with chmod: {file_path}")
+                            os.chmod(file_path, 0o777)
+                            os.remove(file_path)
+                            print(f"Deleted after chmod: {file_path}")
+                        except Exception as e:
+                            print(f"Failed to delete {file_path}: {e}")
+                            # Try system command as last resort
+                            os.system(f"rm -f '{file_path}'")
+                
+                # Verify deletion
+                remaining = os.listdir(UPLOAD_DIR)
+                if remaining:
+                    print(f"Warning: {len(remaining)} files still remaining: {remaining}")
+                else:
+                    print("All files successfully deleted")
+                    
+            except Exception as e:
+                print(f"Error during cleanup: {e}")
+                raise e
+        else:
+            print(f"Upload directory does not exist: {UPLOAD_DIR}")
         
-        return {"message": "Index and uploads cleared successfully"}
+        print("=== Reset complete ===")
+        return {"status": "success", "message": "Index and uploads cleared successfully"}
     except Exception as e:
         print(f"Error in reset_index: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to reset index and uploads: {str(e)}"
+            detail={"status": "error", "message": str(e)}
         )
 
 def initialize_index():
