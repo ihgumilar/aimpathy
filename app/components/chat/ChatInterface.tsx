@@ -346,15 +346,46 @@ export default function ChatInterface() {
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (sessionId) {
-        fetch(`/api/chat/session/${sessionId}`, {
-          method: 'DELETE',
-        }).catch(console.error);
+  const handleClearChat = async () => {
+    try {
+      console.log('Starting chat cleanup...');
+      
+      // Single call to reset-index to clean up all files and sessions
+      const resetResponse = await fetch('/api/reset-index', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!resetResponse.ok) {
+        console.error('Failed to reset index');
+        return;
       }
-    };
-  }, [sessionId]);
+
+      // Clear all frontend state after successful reset
+      setMessages([]);
+      setInput('');
+      setSelectedFile(null);
+      setSessionId(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+    } catch (error) {
+      console.error('Error clearing chat:', error);
+    }
+  };
+
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const ProcessingProgressBar = () => {
     if (!processingStatus.isProcessing && processingStatus.progress === 0) return null;
@@ -395,49 +426,6 @@ export default function ChatInterface() {
       </div>
     );
   };
-
-  const handleClearChat = async () => {
-    try {
-      console.log('Starting chat cleanup...');
-      
-      // First call reset-index to clean up all files
-      const resetResponse = await fetch('/api/reset-index', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      // Clear frontend state regardless of response
-      setMessages([]);
-      setInput('');
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-
-      // Clear session if exists
-      if (sessionId) {
-        await fetch(`/api/chat/session/${sessionId}`, {
-          method: 'DELETE',
-        });
-        setSessionId(null);
-      }
-
-    } catch (error) {
-      console.error('Error clearing chat:', error);
-    }
-  };
-
-  // Function to scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   return (
     <div className="chat-container">
