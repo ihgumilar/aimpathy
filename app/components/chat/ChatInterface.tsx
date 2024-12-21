@@ -12,19 +12,19 @@ interface ChatMessage {
 
 const SUGGESTED_PROMPTS = [
   {
-    title: "dentify the key takeaways from this document",
-    icon: "🗝️"
-  },
-  {
-    title: "List the main arguments or points discussed in this file",
-    icon: "✅"
-  },
-  {
-    title: "Summarise this article or text for me in one paragraph",
+    title: "Summarize the key clinical findings and diagnoses",
     icon: "📝"
   },
   {
-    title: "Outline the key ideas from this file",
+    title: "List the recommended treatment approaches",
+    icon: "✅"
+  },
+  {
+    title: "Extract the main symptoms and behavioral patterns",
+    icon: "🗝️"
+  },
+  {
+    title: "Identify risk factors and protective factors",
     icon: "🧩"
   }
 ];
@@ -451,8 +451,8 @@ export default function ChatInterface() {
               <span className="highlight">AI</span><span className="normal">mpathy</span>
             </a>
           </h1>
-          <h2>What would you like to know?</h2>
-          <p className="subtitle">Use one of these prompts below to begin</p>
+          <h2>Bridging Technology and Humanity</h2>
+          <p className="subtitle">Upload your PDF file first, then select a prompt below to begin or enter your own text.</p>
           
           <div className="prompts-grid">
             {SUGGESTED_PROMPTS.map((prompt, index) => (
