@@ -55,4 +55,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Secure WebSocket connections
 - Proper file cleanup after sessions end
 
-[0.1.0]: https://github.com/yourusername/aimpathy/releases/tag/v0.1.0 
+[0.1.0]: https://github.com/ihgumilar/aimpathy/releases/tag/v0.1.0
