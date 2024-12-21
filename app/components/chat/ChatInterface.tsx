@@ -315,10 +315,35 @@ export default function ChatInterface() {
     }
   };
 
-  const clearAttachment = () => {
-    setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const clearAttachment = async () => {
+    try {
+      console.log('Clearing attachment...');
+      
+      // Clear session and delete file if exists
+      if (sessionId) {
+        console.log('Deleting session:', sessionId);
+        
+        // Delete the specific session and its file through the API route
+        const response = await fetch(`/api/chat/session/${sessionId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete session and file');
+        }
+
+        console.log('Session and file deleted successfully');
+        setSessionId(null);
+      }
+
+      // Clear frontend state
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+    } catch (error) {
+      console.error('Error clearing attachment:', error);
     }
   };
 
