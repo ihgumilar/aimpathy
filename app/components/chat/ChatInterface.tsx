@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Paperclip, Send, X, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { LinearProgress, Box, Typography } from '@mui/material';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -12,19 +11,19 @@ interface ChatMessage {
 
 const SUGGESTED_PROMPTS = [
   {
-    title: "dentify the key takeaways from this document",
-    icon: "🗝️"
-  },
-  {
-    title: "List the main arguments or points discussed in this file",
-    icon: "✅"
-  },
-  {
-    title: "Summarise this article or text for me in one paragraph",
+    title: "Summarize the key clinical findings and diagnoses",
     icon: "📝"
   },
   {
-    title: "Outline the key ideas from this file",
+    title: "List the recommended treatment approaches",
+    icon: "✅"
+  },
+  {
+    title: "Extract the main symptoms and behavioral patterns",
+    icon: "🗝️"
+  },
+  {
+    title: "Identify risk factors and protective factors",
     icon: "🧩"
   }
 ];
@@ -315,22 +314,78 @@ export default function ChatInterface() {
     }
   };
 
-  const clearAttachment = () => {
-    setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const clearAttachment = async () => {
+    try {
+      console.log('Clearing attachment...');
+      
+      // Clear session and delete file if exists
+      if (sessionId) {
+        console.log('Deleting session:', sessionId);
+        
+        // Delete the specific session and its file through the API route
+        const response = await fetch(`/api/chat/session/${sessionId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete session and file');
+        }
+
+        console.log('Session and file deleted successfully');
+        setSessionId(null);
+      }
+
+      // Clear frontend state
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+    } catch (error) {
+      console.error('Error clearing attachment:', error);
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (sessionId) {
-        fetch(`/api/chat/session/${sessionId}`, {
-          method: 'DELETE',
-        }).catch(console.error);
+  const handleClearChat = async () => {
+    try {
+      console.log('Starting chat cleanup...');
+      
+      // Single call to reset-index to clean up all files and sessions
+      const resetResponse = await fetch('/api/reset-index', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!resetResponse.ok) {
+        console.error('Failed to reset index');
+        return;
       }
-    };
-  }, [sessionId]);
+
+      // Clear all frontend state after successful reset
+      setMessages([]);
+      setInput('');
+      setSelectedFile(null);
+      setSessionId(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+    } catch (error) {
+      console.error('Error clearing chat:', error);
+    }
+  };
+
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const ProcessingProgressBar = () => {
     if (!processingStatus.isProcessing && processingStatus.progress === 0) return null;
@@ -372,49 +427,6 @@ export default function ChatInterface() {
     );
   };
 
-  const handleClearChat = async () => {
-    try {
-      console.log('Starting chat cleanup...');
-      
-      // First call reset-index to clean up all files
-      const resetResponse = await fetch('/api/reset-index', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      // Clear frontend state regardless of response
-      setMessages([]);
-      setInput('');
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-
-      // Clear session if exists
-      if (sessionId) {
-        await fetch(`/api/chat/session/${sessionId}`, {
-          method: 'DELETE',
-        });
-        setSessionId(null);
-      }
-
-    } catch (error) {
-      console.error('Error clearing chat:', error);
-    }
-  };
-
-  // Function to scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
   return (
     <div className="chat-container">
       <ProcessingProgressBar />
@@ -426,8 +438,8 @@ export default function ChatInterface() {
               <span className="highlight">AI</span><span className="normal">mpathy</span>
             </a>
           </h1>
-          <h2>What would you like to know?</h2>
-          <p className="subtitle">Use one of these prompts below to begin</p>
+          <h2>Bridging Technology and Humanity</h2>
+          <p className="subtitle">Upload your PDF file first, then select a prompt below to begin or enter your own text.</p>
           
           <div className="prompts-grid">
             {SUGGESTED_PROMPTS.map((prompt, index) => (

@@ -183,9 +183,21 @@ async def clear_session(session_id: str):
             # Remove the PDF file
             file_path = os.path.join(UPLOAD_DIR, f"{session_id}.pdf")
             if os.path.exists(file_path):
-                os.remove(file_path)
+                try:
+                    os.remove(file_path)
+                    print(f"Successfully deleted file: {file_path}")
+                except Exception as e:
+                    print(f"Error deleting file: {e}")
+                    # Try with force permissions
+                    try:
+                        os.chmod(file_path, 0o777)
+                        os.remove(file_path)
+                        print(f"Deleted file after chmod: {file_path}")
+                    except Exception as e2:
+                        print(f"Failed to delete file even with chmod: {e2}")
                 
             return {"message": "Session cleared successfully"}
+            
     except Exception as e:
         print(f"Error clearing session: {str(e)}")
         raise HTTPException(
