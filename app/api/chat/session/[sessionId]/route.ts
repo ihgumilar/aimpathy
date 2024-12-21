@@ -1,18 +1,24 @@
 import { NextResponse } from 'next/server';
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { sessionId: string } }
-) {
+// Add type for params
+type Params = {
+  params: {
+    sessionId: string;
+  };
+};
+
+export async function DELETE(request: Request, { params }: Params) {
   try {
-    const sessionId = params.sessionId;
-    
-    const response = await fetch(`http://localhost:8000/api/chat/session/${sessionId}`, {
+    // Access sessionId directly since we've properly typed it
+    const response = await fetch(`http://localhost:8000/api/chat/session/${params.sessionId}`, {
       method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
     if (!response.ok) {
-      throw new Error('Failed to delete session');
+      return new NextResponse(null, { status: response.status });
     }
 
     return new NextResponse(null, { status: 200 });

@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Paperclip, Send, X, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { LinearProgress, Box, Typography } from '@mui/material';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
