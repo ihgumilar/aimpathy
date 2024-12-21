@@ -55,6 +55,7 @@ export default function ChatInterface() {
     currentStep: ''
   });
   const wsRef = useRef<WebSocket | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -362,6 +363,16 @@ export default function ChatInterface() {
     }
   };
 
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   return (
     <div className="chat-container">
       <ProcessingProgressBar />
@@ -401,7 +412,7 @@ export default function ChatInterface() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+          <div className="flex-1 overflow-y-auto mb-4 space-y-4 max-h-[calc(100vh-200px)]">
             {messages.map((message, index) => (
               <div
                 key={index}
@@ -415,6 +426,7 @@ export default function ChatInterface() {
                 {message.content}
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         </>
       )}
