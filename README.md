@@ -1,78 +1,146 @@
-# PDF Processing Application
+# AImpathy - Bridging Technology and Humanity
 
-This project consists of a Next.js frontend and a Python backend for PDF processing.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Backend Setup and Running
+AImpathy is an application that allows you to chat with your mental health related documents using AI. Upload a PDF and ask questions about its content.
 
-1. Navigate to the backend directory:
+## Prerequisites
 
+Before you begin, ensure you have the following installed:
+- Python (version 3.9 or higher recommended)
+- Node.js (version 16 or higher)
+- npm (comes with Node.js)
+
+## Setup Guide
+
+### 1. Backend Setup
+
+1. Open your terminal and navigate to the backend directory:
 ```bash
 cd backend
 ```
 
-2. Create a virtual environment (recommended):
-
-```bash
-python -m venv venv
-```
-
-3. Activate the virtual environment:
+2. Create a virtual environment:
    - On Windows:
    ```bash
+   python -m venv venv
    .\venv\Scripts\activate
    ```
    - On macOS/Linux:
    ```bash
+   python -m venv venv
    source venv/bin/activate
    ```
 
-4. Install the required dependencies:
-
+3. Install required packages:
 ```bash
 pip install -r requirements.txt
 ```
 
-5. Run the backend server:
+4. Create a `.env` file in the backend directory with your API key:
+```env
+GROQ_API_KEY=your_api_key_here
+```
 
+To get your API key:
+1. Go to [groq.com](https://groq.com)
+2. Sign up for an account
+3. Navigate to API Keys section
+4. Create a new API key
+5. Copy and paste it into your .env file
+
+### 2. Frontend Setup
+
+1. Open a new terminal and navigate to the project root directory
+
+2. Install dependencies:
 ```bash
+npm install
+```
+
+### 3. Running the Application
+
+1. Start the backend server (make sure your virtual environment is activated):
+```bash
+cd backend
 python main.py
 ```
+The backend will run on `http://localhost:8000`
 
-The backend server will start running on `http://localhost:8000`
-
-## Frontend Setup and Running
-
-The frontend is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-1. From the project root, run the development server:
-
+2. In a new terminal, start the frontend:
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+The frontend will run on `http://localhost:3000`
 
-2. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Open your browser and visit `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a custom font for Vercel.
+1. Upload a PDF file using the paperclip icon
+2. Wait for the file to process
+3. Ask questions about your document
+4. Use suggested prompts or type your own questions
+5. Clear chat using the "Clear Chat" button when done
 
-## Learn More
+## Troubleshooting
 
-To learn more about Next.js, take a look at the following resources:
+Common issues and solutions:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. "Module not found" error:
+   - Make sure you've activated the virtual environment
+   - Try reinstalling requirements: `pip install -r requirements.txt`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. "API key not found" error:
+   - Check if your .env file exists in the backend directory
+   - Verify your API key is correct
 
-## Deploy on Vercel
+3. "Connection refused" error:
+   - Ensure both backend and frontend servers are running
+   - Check if the ports 3000 and 8000 are available
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+For more help, please create an issue on GitHub.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Changelog
+
+### Version 0.1.0 (Initial Release)
+
+Features:
+- PDF document upload and processing
+- Real-time chat interface with AI
+- Progress tracking for file uploads
+- Suggested prompts for common queries
+- Formatted responses for lists and bullet points
+- Session management for multiple documents
+- Auto-scrolling chat interface
+- File cleanup on session end
+
+Technical Improvements:
+- WebSocket integration for real-time progress updates
+- Proper file cleanup in local storage
+- Error handling for failed uploads
+- Responsive design for better user experience
+
+## License
+
+MIT License
+
+Copyright (c) 2024 AImpathy
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
