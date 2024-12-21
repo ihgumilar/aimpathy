@@ -2,7 +2,20 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-AImpathy is an application that allows you to chat with your mental health related documents using AI. Upload a PDF and ask questions about its content.
+**AImpathy**
+ is a specialized tool designed for mental health professionals and individuals to interact with clinical documents, psychological assessments, and therapeutic resources using AI. Simply upload your PDF documents to explore patient cases, treatment plans, and psychological reports through meaningful, AI-driven conversations.
+
+Perfect for:
+- Psychologists and psychiatrists analyzing assessment reports
+- Individuals seeking to understand their medical and psychological reports
+- Therapists reviewing treatment documentation
+- Mental health researchers exploring clinical studies
+- Counselors accessing therapeutic resources quickly
+- Clinical supervisors reviewing case notes
+- Decision makers in mental health (clinic directors, program managers, policy makers)
+- Social workers and case managers coordinating care
+- Workplace mental health coordinators supporting employees
+- AI and tech innovators advancing mental health tools
 
 ## Prerequisites
 
