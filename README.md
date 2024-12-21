@@ -1,8 +1,13 @@
-# AImpathy - Bridging Technology and Humanity
+# [AImpathy](https://www.aimpathy.co.nz/) - Bridging Technology and Humanity
+
+
+[![image](https://github.com/user-attachments/assets/d594b36c-017e-45dd-8e1c-987f08af851a)](https://www.aimpathy.co.nz/)
+
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**AImpathy**
+
+[**AImpathy**](https://www.aimpathy.co.nz/)
  is a specialized tool designed for mental health professionals and individuals to interact with clinical documents, psychological assessments, and therapeutic resources using AI. Simply upload your PDF documents to explore patient cases, treatment plans, and psychological reports through meaningful, AI-driven conversations.
 
 Perfect for:
