@@ -40,6 +40,48 @@ type ProgressUpdate = {
   step: string;
 };
 
+const formatMessage = (content: string) => {
+  // Check if the content contains numbered list (e.g., "1.", "2.", etc.)
+  if (content.match(/^\d+\./m)) {
+    return content.split('\n').map((line, index) => {
+      const listMatch = line.match(/^(\d+\.)(.*)/);
+      if (listMatch) {
+        return (
+          <div key={index} className="flex gap-2 mb-2">
+            <span className="font-bold min-w-[24px]">{listMatch[1]}</span>
+            <span>{listMatch[2]}</span>
+          </div>
+        );
+      }
+      return <div key={index} className="mb-2">{line}</div>;
+    });
+  }
+  
+  // Check if content contains bullet points, asterisks, or other markers
+  if (content.includes('* ') || content.includes('• ') || content.includes('- ')) {
+    return content.split('\n').map((line, index) => {
+      // Handle bullet points, asterisks, or dashes at the start of lines
+      if (line.match(/^[*•\-]\s/)) {
+        return (
+          <div key={index} className="flex gap-2 mb-2 ml-4">
+            <span className="min-w-[12px] text-gray-600">•</span>
+            <span>{line.replace(/^[*•\-]\s/, '')}</span>
+          </div>
+        );
+      }
+      // Handle regular text
+      return line.trim() ? (
+        <div key={index} className="mb-2">{line}</div>
+      ) : null;
+    }).filter(Boolean); // Remove empty lines
+  }
+  
+  // Split paragraphs for better readability
+  return content.split('\n').map((line, index) => (
+    line.trim() ? <div key={index} className="mb-2">{line}</div> : null
+  )).filter(Boolean);
+};
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -423,7 +465,7 @@ export default function ChatInterface() {
                     : 'bg-gray-200 text-gray-900'
                 )}
               >
-                {message.content}
+                {typeof message.content === 'string' ? formatMessage(message.content) : message.content}
               </div>
             ))}
             <div ref={messagesEndRef} />
