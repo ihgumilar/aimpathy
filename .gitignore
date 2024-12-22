@@ -2,6 +2,7 @@
 
 # Python
 backend/__pycache__/
+*/__pycache__/
 *.py[cod]
 *.pyc
 *.pyo
@@ -28,6 +29,7 @@ venv/
 ENV/
 .venv
 .python-version
+.pytest_cache/
 
 # Node.js
 node_modules/
@@ -61,4 +63,7 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 .coverage
 coverage/
-.pytest_cache/
+
+# Operating System
+.DS_Store
+Thumbs.db
