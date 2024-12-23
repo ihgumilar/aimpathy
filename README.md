@@ -7,6 +7,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 
+![Demo](media/demo_v0.1.0.gif)
+
+
 [**AImpathy**](https://www.aimpathy.co.nz/)
  is a specialized tool designed for mental health professionals and individuals to interact with clinical documents, psychological assessments, and therapeutic resources using AI. Simply upload your PDF documents to explore patient cases, treatment plans, and psychological reports through meaningful, AI-driven conversations.
 
