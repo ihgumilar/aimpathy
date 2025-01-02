@@ -100,7 +100,7 @@ class PDFProcessor:
             print(f"Error processing PDF: {str(e)}")
             await send_progress(0, f"Error: {str(e)}")
             return False
-
+    
     async def query_pdf(self, query_text: str) -> str:
         """Query the indexed PDF content."""
         if not self.index:
@@ -142,7 +142,7 @@ class PDFProcessor:
             print(f"Streaming error: {str(e)}")
             yield f"Error: {str(e)}"
 
-# Usage example:
-# processor = PDFProcessor()
-# processor.process_pdf("path/to/pdf")
-# response = processor.query_pdf("What is this document about?") 
+    def cleanup(self):
+        """Clean up resources"""
+        if self.index:
+            self.index = None 

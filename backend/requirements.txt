@@ -1,3 +1,6 @@
+Flask==2.3.3
+flask-sqlalchemy==3.1.1
+Werkzeug==2.3.7
 fastapi==0.109.2
 uvicorn==0.27.1
 python-multipart==0.0.9
@@ -8,6 +11,6 @@ llama-index-readers-file==0.4.1
 llama-index-core==0.12.6
 python-dotenv==1.0.1
 pydantic>=2.8.0
-groq==0.4.2
+groq==0.13.1
 uvicorn[standard]
 websockets>=12.0
