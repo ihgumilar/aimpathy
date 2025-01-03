@@ -2,35 +2,49 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, WebSocket, W
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pdf_processor import PDFProcessor
+from models import AgentCreate
 import os
 import shutil
-from typing import Optional, AsyncGenerator, Dict
+from typing import Optional, Dict, AsyncGenerator
 import uuid
 import json
 
 app = FastAPI()
-active_connections: Dict[str, WebSocket] = {}
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Update with your frontend URL
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Store PDF processors for each session
-pdf_processors = {}
+# Store active WebSocket connections and PDF processors
+active_connections: Dict[str, WebSocket] = {}
+pdf_processors: Dict[str, PDFProcessor] = {}
 
 # Create uploads directory if it doesn't exist
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+@app.websocket("/api/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    socket_id = str(id(websocket))
+    active_connections[socket_id] = websocket
+    
+    try:
+        while True:
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        if socket_id in active_connections:
+            del active_connections[socket_id]
+
 @app.post("/api/upload")
 async def upload_pdf(
     file: UploadFile = File(...),
-    socket_id: str = Form(None)
+    socket_id: Optional[str] = None
 ):
     """Handle PDF file upload and indexing."""
     if not file:
@@ -115,71 +129,44 @@ async def query_pdf(
         }
     )
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    socket_id = str(id(websocket))
-    active_connections[socket_id] = websocket
-    
-    try:
-        while True:
-            data = await websocket.receive_text()
-    except WebSocketDisconnect:
-        if socket_id in active_connections:
-            del active_connections[socket_id]
-
 @app.post("/api/reset-index")
 async def reset_index():
-    """Reset the vector store index and clean up all uploaded files."""
+    """Reset the index and clear uploaded files."""
     try:
-        print("\n=== Starting index reset and file cleanup ===")
-        # Clear all active sessions
-        pdf_processors.clear()
-        print("Cleared all active PDF processors")
-        
-        print(f"Cleaning directory: {UPLOAD_DIR}")
-        
-        if os.path.exists(UPLOAD_DIR):
+        # Clear the uploads directory
+        for filename in os.listdir(UPLOAD_DIR):
+            file_path = os.path.join(UPLOAD_DIR, filename)
             try:
-                # List all files before deletion
-                files = os.listdir(UPLOAD_DIR)
-                print(f"Found {len(files)} files to delete: {files}")
-                
-                # Delete each file
-                for filename in files:
-                    file_path = os.path.join(UPLOAD_DIR, filename)
-                    if os.path.isfile(file_path):
-                        try:
-                            print(f"Attempting to delete: {file_path}")
-                            os.remove(file_path)
-                            print(f"Successfully deleted: {file_path}")
-                        except PermissionError:
-                            print(f"Permission error, trying with chmod: {file_path}")
-                            os.chmod(file_path, 0o777)
-                            os.remove(file_path)
-                            print(f"Deleted after chmod: {file_path}")
-                        except Exception as e:
-                            print(f"Failed to delete {file_path}: {e}")
-                
-                # Verify deletion
-                remaining = os.listdir(UPLOAD_DIR)
-                if remaining:
-                    print(f"Warning: {len(remaining)} files still remaining: {remaining}")
-                else:
-                    print("All files successfully deleted")
-                    
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
             except Exception as e:
-                print(f"Error during cleanup: {e}")
-                raise e
+                print(f'Error deleting {file_path}: {str(e)}')
         
-        print("=== Reset complete ===")
-        return {"status": "success", "message": "Index and uploads cleared successfully"}
+        # Clear the processors
+        pdf_processors.clear()
+        
+        return {"message": "Index reset successfully"}
     except Exception as e:
-        print(f"Error in reset_index: {e}")
         raise HTTPException(
             status_code=500,
-            detail={"status": "error", "message": str(e)}
+            detail=f"Failed to reset index: {str(e)}"
         )
+
+@app.post("/api/agents/create")
+async def create_agent(agent_data: AgentCreate):
+    try:
+        # Create agent with optional instructions
+        agent = {
+            "id": str(uuid.uuid4()),
+            "name": agent_data.name,
+            "role": agent_data.role,
+            "instructions": agent_data.instructions if agent_data.instructions else None,
+            "documents": []
+        }
+        # Save agent to your storage
+        return {"agent_id": agent["id"], "message": "Agent created successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

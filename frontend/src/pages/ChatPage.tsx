@@ -95,12 +95,12 @@ const ChatPage: React.FC<ChatPageProps> = ({ sessionId, onReset, fileName }) => 
         throw new Error(errorData.detail || 'Query failed');
       }
 
-      let fullResponse = '';
+      // Handle streaming response
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
       if (reader) {
-        setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+        let fullResponse = '';
         
         while (true) {
           const { done, value } = await reader.read();
@@ -108,23 +108,25 @@ const ChatPage: React.FC<ChatPageProps> = ({ sessionId, onReset, fileName }) => 
 
           const chunk = decoder.decode(value);
           const lines = chunk.split('\n');
-          
+
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               const data = line.slice(5);
-              if (data === '[DONE]') break;
-              
+              if (data === '[DONE]') continue;
+
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.content) {
                   fullResponse += parsed.content;
                   setMessages(prev => {
                     const newMessages = [...prev];
-                    newMessages[newMessages.length - 1].content = fullResponse;
+                    if (newMessages[newMessages.length - 1]?.role === 'assistant') {
+                      newMessages[newMessages.length - 1].content = fullResponse;
+                    } else {
+                      newMessages.push({ role: 'assistant', content: fullResponse });
+                    }
                     return newMessages;
                   });
-                } else if (parsed.error) {
-                  throw new Error(parsed.error);
                 }
               } catch (e) {
                 console.error('Error parsing chunk:', e);
@@ -134,10 +136,10 @@ const ChatPage: React.FC<ChatPageProps> = ({ sessionId, onReset, fileName }) => 
         }
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error querying:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Sorry, I encountered an error processing your request.' 
+        content: 'Sorry, there was an error processing your request.' 
       }]);
     } finally {
       setIsLoading(false);

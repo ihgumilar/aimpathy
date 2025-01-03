@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import AgentCreationModal from './components/AgentCreationModal';
 import Sidebar from './components/Sidebar';
 import ChatPage from './pages/ChatPage';
+import CreateAgentPage from './pages/CreateAgentPage';
 
 interface PromptMessage {
   type: string;
@@ -20,6 +21,7 @@ function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<'main' | 'chat' | 'create-agent'>('main');
 
   const handleCardClick = (type: string) => {
     let promptText = '';
@@ -40,68 +42,84 @@ function App() {
     setMessage(promptText);
   };
 
-  const handleCreateAgent = async (agentData: {
-    name: string;
-    role: string;
-    task: string;
-    instructions: string;
-  }) => {
-    try {
-      const response = await fetch('http://localhost:8000/api/agents/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(agentData),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create agent');
-      }
-      
-      console.log('Agent created successfully');
-    } catch (error) {
-      console.error('Error creating agent:', error);
+  const handleCreateAgent = () => {
+    setIsSidebarOpen(false);
+    setCurrentPage('create-agent');
+  };
+
+  const handleBackToMain = () => {
+    setCurrentPage('main');
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const files = Array.from(e.dataTransfer.files);
+    const file = files[0];
+
+    if (file && file.type === 'application/pdf') {
+      await handleFileUploadProcess(file);
+    } else {
+      alert('Please upload a PDF file');
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setSelectedFile(file);
-      setIsUploading(true);
-      setUploadProgress(0);
+  const handleFileUploadProcess = async (file: File) => {
+    setSelectedFile(file);
+    setIsUploading(true);
+    setUploadProgress(0);
 
-      const formData = new FormData();
-      formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-      try {
-        const response = await fetch('http://localhost:8000/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
+    try {
+      // Connect to WebSocket for progress updates
+      const ws = new WebSocket('ws://localhost:8000/api/ws');
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        setUploadProgress(data.progress || 0);
+      };
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'Upload failed');
-        }
+      const response = await fetch('http://localhost:8000/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-        const data = await response.json();
-        setSessionId(data.session_id);
-        setShowChat(true);
-        console.log('Upload successful:', data);
-        setUploadProgress(100);
-        setTimeout(() => {
-          setIsUploading(false);
-          setUploadProgress(0);
-        }, 500);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Upload failed');
+      }
 
-      } catch (error) {
-        console.error('Error uploading file:', error);
+      const data = await response.json();
+      setSessionId(data.session_id);
+      setShowChat(true);
+      console.log('Upload successful:', data);
+      setUploadProgress(100);
+      
+      // Navigate to chat page after successful upload
+      setTimeout(() => {
         setIsUploading(false);
         setUploadProgress(0);
-        alert(error instanceof Error ? error.message : 'Failed to upload file');
-      }
+      }, 500);
+
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setIsUploading(false);
+      setUploadProgress(0);
+      alert(error instanceof Error ? error.message : 'Failed to upload file');
+    }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      handleFileUploadProcess(file);
     } else {
       alert('Please upload a PDF file');
     }
@@ -175,6 +193,10 @@ function App() {
     setSelectedFile(null);
   };
 
+  if (currentPage === 'create-agent') {
+    return <CreateAgentPage onBack={handleBackToMain} />;
+  }
+
   if (showChat && sessionId) {
     return (
       <ChatPage 
@@ -221,41 +243,74 @@ function App() {
             href="https://www.aimpathy.co.nz/" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="text-3xl font-bold text-red-500 hover:text-red-600 transition-colors"
+            className="text-3xl font-bold"
           >
-            AImpathy
+            <span className="text-red-500">AI</span>
+            <span className="text-black">mpathy</span>
           </a>
           <p className="text-xl mb-4">Bridging Technology and Humanity</p>
           <p className="text-gray-600 mb-6">
             Upload your PDF file first, then select a prompt below to begin or enter your own text.
           </p>
-          <div className="flex flex-col items-center mb-8">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors mb-2"
+          <div className="max-w-xl mx-auto">
+            <div 
+              className="mt-2 flex justify-center rounded-lg border border-dashed border-gray-900/25 px-6 py-10"
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
             >
-              {selectedFile ? selectedFile.name : 'Upload PDF'}
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept=".pdf"
-              className="hidden"
-            />
-            {isUploading && (
-              <div className="w-64 mt-4">
-                <div className="bg-gray-200 rounded-full h-2.5">
-                  <div
-                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  Uploading... {uploadProgress}%
-                </p>
+              <div className="text-center">
+                {isUploading ? (
+                  <div className="space-y-4">
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div
+                        className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Processing... {uploadProgress}%
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-4">
+                      <svg
+                        className="mx-auto h-12 w-12 text-gray-300"
+                        fill="none"
+                        viewBox="0 0 48 48"
+                      >
+                        <path
+                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          stroke="currentColor"
+                        />
+                      </svg>
+                    </div>
+                    <div className="text-sm leading-6 text-gray-600">
+                      <label
+                        htmlFor="file-upload"
+                        className="relative cursor-pointer rounded-md bg-white font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500"
+                      >
+                        <span>Upload a file</span>
+                        <input
+                          id="file-upload"
+                          type="file"
+                          className="sr-only"
+                          onChange={handleFileUpload}
+                          accept=".pdf"
+                        />
+                      </label>
+                      <p className="pl-1">or drag and drop</p>
+                    </div>
+                    <p className="text-xs leading-5 text-gray-600">
+                      PDF up to 10MB
+                    </p>
+                  </>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
 
@@ -370,10 +425,7 @@ function App() {
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        onCreateAgent={() => {
-          setIsSidebarOpen(false);
-          setIsModalOpen(true);
-        }}
+        onCreateAgent={handleCreateAgent}
       />
 
       {/* Agent Creation Modal */}
