@@ -3,6 +3,8 @@ import AgentCreationModal from './components/AgentCreationModal';
 import Sidebar from './components/Sidebar';
 import ChatPage from './pages/ChatPage';
 import CreateAgentPage from './pages/CreateAgentPage';
+import axios from 'axios';
+import { API_BASE_URL } from './config';
 
 interface PromptMessage {
   type: string;
@@ -22,6 +24,7 @@ function App() {
   const [showChat, setShowChat] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<'main' | 'chat' | 'create-agent'>('main');
+  const [selectedAgent, setSelectedAgent] = useState<string>('');
 
   const handleCardClick = (type: string) => {
     let promptText = '';
@@ -125,65 +128,33 @@ function App() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sessionId || !message) {
-      alert('Please upload a file and type a message');
-      return;
-    }
+    if (!message.trim()) return;
 
     try {
-      const formData = new FormData();
-      formData.append('session_id', sessionId);
-      formData.append('query', message);
-
-      const response = await fetch('http://localhost:8000/api/query', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Query failed');
-      }
-
-      // Handle streaming response
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        setResponse(''); // Clear previous response
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(5);
-              if (data === '[DONE]') break;
-              
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.content) {
-                  setResponse(prev => (prev || '') + parsed.content);
-                } else if (parsed.error) {
-                  throw new Error(parsed.error);
-                }
-              } catch (e) {
-                console.error('Error parsing chunk:', e);
-              }
-            }
+      console.log("\n=== Sending Query ===");
+      console.log("Message:", message);
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/agents/query`,
+        { message: message },
+        {
+          headers: {
+            'Content-Type': 'application/json'
           }
         }
-      }
+      );
 
-      setMessage('');
+      console.log("Response from backend:", response.data);
+
+      if (response.data && response.data.response) {
+        setResponse(response.data.response);
+      }
+      setMessage(''); // Clear input after successful send
     } catch (error) {
-      console.error('Error querying document:', error);
-      alert(error instanceof Error ? error.message : 'Failed to process query');
+      console.error('Error sending message:', error);
+      alert('Failed to get response from team');
     }
   };
 
@@ -191,6 +162,29 @@ function App() {
     setSessionId(null);
     setShowChat(false);
     setSelectedFile(null);
+  };
+
+  const handleDeleteAgents = async (agentIds: string[]) => {
+    try {
+      console.log("Deleting agents:", agentIds);
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/agents/delete`,
+        { agent_ids: agentIds },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log("Delete response:", response.data);
+      setIsSidebarOpen(false);
+      
+    } catch (error) {
+      console.error('Error deleting agents:', error);
+      alert('Failed to delete agents');
+    }
   };
 
   if (currentPage === 'create-agent') {
@@ -361,37 +355,9 @@ function App() {
           </div>
         </div>
 
-        {/* Response Section */}
-        {response && (
-          <div className="max-w-3xl mx-auto mb-4">
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <p className="text-gray-700">{response}</p>
-            </div>
-          </div>
-        )}
-
         {/* Message Input Section */}
         <div className="max-w-3xl mx-auto">
-          <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="p-2 text-gray-400 hover:text-gray-600"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                />
-              </svg>
-            </button>
+          <form onSubmit={handleSendMessage} className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm">
             <input
               type="text"
               value={message}
@@ -419,6 +385,15 @@ function App() {
             </button>
           </form>
         </div>
+
+        {/* Response Section */}
+        {response && (
+          <div className="max-w-3xl mx-auto mt-4">
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <p className="text-gray-700 whitespace-pre-wrap">{response}</p>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Sidebar */}
@@ -426,6 +401,7 @@ function App() {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onCreateAgent={handleCreateAgent}
+        onDeleteAgents={handleDeleteAgents}
       />
 
       {/* Agent Creation Modal */}

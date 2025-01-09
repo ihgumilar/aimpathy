@@ -1,12 +1,64 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { API_BASE_URL } from '../config';
+
+interface Agent {
+  id: string;
+  name: string;
+  role: string;
+}
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateAgent: () => void;
+  onDeleteAgents: (agentIds: string[]) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCreateAgent }) => {
+export default function Sidebar({ isOpen, onClose, onCreateAgent, onDeleteAgents }: SidebarProps) {
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+
+  // Fetch agents when sidebar opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchAgents();
+    }
+  }, [isOpen]);
+
+  const fetchAgents = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/agents/list`);
+      console.log("Fetched agents:", response.data);
+      setAgents(response.data.agents || []);
+    } catch (error) {
+      console.error('Error fetching agents:', error);
+    }
+  };
+
+  const handleAgentSelect = (agentId: string) => {
+    setSelectedAgents(prev => {
+      if (prev.includes(agentId)) {
+        return prev.filter(id => id !== agentId);
+      } else {
+        return [...prev, agentId];
+      }
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedAgents.length === 0) return;
+
+    try {
+      console.log("Deleting agents:", selectedAgents);
+      await onDeleteAgents(selectedAgents);
+      setSelectedAgents([]);
+      await fetchAgents(); // Refresh the list
+    } catch (error) {
+      console.error('Error in handleDeleteSelected:', error);
+    }
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -42,30 +94,48 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCreateAgent }) => 
               />
             </svg>
           </button>
-          <h2 className="text-xl font-bold mb-6">Menu</h2>
-          <button
-            onClick={onCreateAgent}
-            className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 rounded-lg flex items-center"
-          >
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          
+          <h2 className="text-xl font-bold mb-6">Agents</h2>
+          
+          {/* Action Buttons */}
+          <div className="flex justify-between items-center mb-4">
+            <button
+              onClick={onCreateAgent}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-              />
-            </svg>
-            Create New Agent
-          </button>
+              Create New
+            </button>
+            <button
+              onClick={handleDeleteSelected}
+              disabled={selectedAgents.length === 0}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-400"
+            >
+              Delete ({selectedAgents.length})
+            </button>
+          </div>
+
+          {/* Agents List */}
+          <div className="mt-4 space-y-2">
+            {agents.map(agent => (
+              <div
+                key={agent.id}
+                className="flex items-center p-2 hover:bg-gray-100 rounded"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedAgents.includes(agent.id)}
+                  onChange={() => handleAgentSelect(agent.id)}
+                  className="mr-2"
+                />
+                <div>
+                  <div className="font-medium">{agent.name}</div>
+                  <div className="text-sm text-gray-500">{agent.role}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </>
   );
-};
-
-export default Sidebar; 
+} 

@@ -19,3 +19,8 @@ def get_all_agents() -> List[Agent]:
 def update_agent(agent: Agent) -> None:
     """Update an agent."""
     _agents[agent.id] = agent 
+
+def delete_agent(agent_id: str) -> None:
+    """Delete an agent."""
+    if agent_id in _agents:
+        del _agents[agent_id] 
