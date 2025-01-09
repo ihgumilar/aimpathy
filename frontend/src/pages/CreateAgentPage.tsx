@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { API_BASE_URL } from '../config';
 
 interface CreateAgentPageProps {
   onBack: () => void;
@@ -28,17 +29,22 @@ const CreateAgentPage: React.FC<CreateAgentPageProps> = ({ onBack }) => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set());
 
-  // Load agents from localStorage on mount
+  // Load agents from backend on mount
   useEffect(() => {
-    const savedAgents = localStorage.getItem('agents');
-    if (savedAgents) {
-      setAgents(JSON.parse(savedAgents));
-    }
-    
-    const savedSelectedAgents = localStorage.getItem('selectedAgents');
-    if (savedSelectedAgents) {
-      setSelectedAgents(new Set(JSON.parse(savedSelectedAgents)));
-    }
+    const fetchAgents = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/agents/list`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch agents');
+        }
+        const data = await response.json();
+        setAgents(data.agents);
+      } catch (error) {
+        console.error('Error fetching agents:', error);
+      }
+    };
+
+    fetchAgents();
   }, []);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,20 +67,57 @@ const CreateAgentPage: React.FC<CreateAgentPageProps> = ({ onBack }) => {
     setIsLoading(true);
 
     try {
-      // Create new agent with mock ID
+      // First create the agent
+      const createResponse = await fetch(`${API_BASE_URL}/agents/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: agentName,
+          role: agentRole,
+          instructions: agentInstructions
+        }),
+      });
+
+      if (!createResponse.ok) {
+        throw new Error('Failed to create agent');
+      }
+
+      const { agent_id } = await createResponse.json();
+      console.log('Agent created with ID:', agent_id);
+
+      // If there are documents, upload them
+      for (const doc of documents) {
+        const formData = new FormData();
+        formData.append('file', doc.file);
+        formData.append('agent_id', agent_id);
+
+        console.log(`Uploading document ${doc.name} for agent ${agent_id}`);
+        
+        const uploadResponse = await fetch(`${API_BASE_URL}/agents/upload-document`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Failed to upload document ${doc.name}`);
+        }
+
+        console.log(`Successfully uploaded document ${doc.name}`);
+      }
+
+      // Add to local state
       const newAgent: Agent = {
-        id: Date.now().toString(), // Use timestamp as ID
+        id: agent_id,
         name: agentName,
         role: agentRole,
         instructions: agentInstructions,
         documents: documents.map(doc => doc.name)
       };
 
-      // Add to agents list
       const updatedAgents = [...agents, newAgent];
       setAgents(updatedAgents);
-      
-      // Save to localStorage
       localStorage.setItem('agents', JSON.stringify(updatedAgents));
 
       // Reset form
@@ -84,11 +127,10 @@ const CreateAgentPage: React.FC<CreateAgentPageProps> = ({ onBack }) => {
       setDocuments([]);
       setShowForm(false);
 
-      // Show success message
       alert('Agent created successfully!');
     } catch (error) {
       console.error('Error creating agent:', error);
-      alert('Failed to create agent');
+      alert('Failed to create agent: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setIsLoading(false);
     }

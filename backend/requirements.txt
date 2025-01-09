@@ -14,3 +14,11 @@ pydantic>=2.8.0
 groq==0.13.1
 uvicorn[standard]
 websockets>=12.0
+phidata==2.7.6
+pypdf==5.1.0
+sentence-transformers>=2.2.2
+openai==1.59.4
+chromadb==0.4.15
+psycopg2-binary==2.9.9
+numpy==1.24.3
+pgvector>=0.2.3

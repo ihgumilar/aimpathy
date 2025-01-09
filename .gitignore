@@ -67,3 +67,11 @@ coverage/
 # Operating System
 .DS_Store
 Thumbs.db
+
+.env
+venv/
+__pycache__/
+*.pyc
+chroma_db/
+agent_documents/
+storage/
